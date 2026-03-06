@@ -9,8 +9,7 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand, \
-    BotCommandScopeDefault, FSInputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand, BotCommandScopeDefault, FSInputFile
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -18,7 +17,7 @@ from aiogram.exceptions import TelegramBadRequest
 
 # Конфигурация
 TOKEN = os.getenv("BOT_TOKEN", "8614643355:AAGM2X4p-xTs6KNuEThKMo3hvYG2eFRkesQ")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "5321542097"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "7877170613"))
 
 # Настройки базы данных
 DATABASE_FILE = os.getenv("DATABASE_FILE", "game_database.db")
@@ -103,44 +102,44 @@ class Player:
 
 class AllianceSystem:
     """Система союзников и совместных атак"""
-
+    
     def __init__(self):
         self.alliances = defaultdict(dict)  # chat_id -> {user_id: [allies_ids]}
         self.alliance_requests = defaultdict(dict)  # chat_id -> {from_user: to_user}
         self.joint_attacks = {}  # attack_id -> attack data
         self.attack_counter = 0
-
+    
     def send_request(self, chat_id: int, from_user: int, to_user: int):
         """Отправить запрос в союзники"""
         self.alliance_requests[chat_id][from_user] = to_user
-
+    
     def get_request(self, chat_id: int, from_user: int) -> Optional[int]:
         """Получить запрос в союзники"""
         return self.alliance_requests[chat_id].get(from_user)
-
+    
     def remove_request(self, chat_id: int, from_user: int):
         """Удалить запрос в союзники"""
         if from_user in self.alliance_requests[chat_id]:
             del self.alliance_requests[chat_id][from_user]
-
+    
     def accept_request(self, chat_id: int, from_user: int, to_user: int):
         """Принять запрос в союзники"""
         if chat_id not in self.alliances:
             self.alliances[chat_id] = defaultdict(list)
-
+        
         # Добавляем друг друга в союзники
         if to_user not in self.alliances[chat_id][from_user]:
             self.alliances[chat_id][from_user].append(to_user)
         if from_user not in self.alliances[chat_id][to_user]:
             self.alliances[chat_id][to_user].append(from_user)
-
+        
         # Удаляем запрос
         self.remove_request(chat_id, from_user)
-
+    
     def get_allies(self, chat_id: int, user_id: int) -> List[int]:
         """Получить список союзников игрока"""
         return self.alliances.get(chat_id, {}).get(user_id, [])
-
+    
     def break_alliance(self, chat_id: int, user1: int, user2: int):
         """Разорвать союз"""
         if chat_id in self.alliances:
@@ -148,12 +147,12 @@ class AllianceSystem:
                 self.alliances[chat_id][user1].remove(user2)
             if user2 in self.alliances[chat_id] and user1 in self.alliances[chat_id][user2]:
                 self.alliances[chat_id][user2].remove(user1)
-
+    
     def create_joint_attack(self, attacker_id: int, target_id: int, chat_id: int) -> str:
         """Создать совместную атаку"""
         self.attack_counter += 1
         attack_id = f"attack_{self.attack_counter}_{chat_id}"
-
+        
         self.joint_attacks[attack_id] = {
             "attacker_id": attacker_id,
             "target_id": target_id,
@@ -161,24 +160,24 @@ class AllianceSystem:
             "participants": [attacker_id],  # участники атаки
             "start_time": datetime.now()
         }
-
+        
         return attack_id
-
+    
     def join_attack(self, attack_id: str, user_id: int) -> bool:
         """Присоединиться к совместной атаке"""
         if attack_id not in self.joint_attacks:
             return False
-
+        
         attack = self.joint_attacks[attack_id]
         if user_id not in attack["participants"]:
             attack["participants"].append(user_id)
             return True
         return False
-
+    
     def get_attack(self, attack_id: str) -> Optional[Dict]:
         """Получить данные атаки"""
         return self.joint_attacks.get(attack_id)
-
+    
     def remove_attack(self, attack_id: str):
         """Удалить атаку"""
         if attack_id in self.joint_attacks:
@@ -205,8 +204,7 @@ class WarSystem:
     def __init__(self):
         self.preparations = {}
 
-    def start_preparation(self, attacker_id: int, defender_id: int, chat_id: int,
-                          attack_id: str = None) -> WarPreparation:
+    def start_preparation(self, attacker_id: int, defender_id: int, chat_id: int, attack_id: str = None) -> WarPreparation:
         prep = WarPreparation(attacker_id, defender_id, chat_id, attack_id)
         self.preparations[chat_id] = prep
         return prep
@@ -218,21 +216,21 @@ class WarSystem:
         prep = self.preparations.get(chat_id)
         if not prep:
             return False
-
+        
         prep.help_offers.append({
             "helper_id": helper_id,
             "target_id": target_id,
             "type": help_type,
             "amount": amount
         })
-
+        
         if target_id == prep.attacker_id:
             if helper_id not in prep.attackers_allies:
                 prep.attackers_allies.append(helper_id)
         else:
             if helper_id not in prep.defenders_allies:
                 prep.defenders_allies.append(helper_id)
-
+        
         return True
 
     def end_preparation(self, chat_id: int) -> Optional[WarPreparation]:
@@ -365,7 +363,7 @@ def init_database():
     # Проверяем и добавляем колонку population если её нет
     cursor.execute("PRAGMA table_info(players)")
     columns = [column[1] for column in cursor.fetchall()]
-
+    
     if 'population' not in columns:
         cursor.execute("ALTER TABLE players ADD COLUMN population INTEGER DEFAULT 1000")
         print("✅ Добавлена колонка population в таблицу players")
@@ -415,26 +413,26 @@ def _save_player_sync(player: Player, chat_id: int):
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
-
+        
         cursor.execute("PRAGMA table_info(players)")
         columns = [column[1] for column in cursor.fetchall()]
-
+        
         if 'population' in columns:
             cursor.execute('''
             INSERT OR REPLACE INTO players 
             (user_id, username, country, money, army_level, city_level, population, last_income, wins, losses, chat_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                player.user_id,
-                player.username,
-                player.country,
+                player.user_id, 
+                player.username, 
+                player.country, 
                 player.money,
-                player.army_level,
-                player.city_level,
+                player.army_level, 
+                player.city_level, 
                 player.population,
                 player.last_income.isoformat() if player.last_income else datetime.now().isoformat(),
-                player.wins,
-                player.losses,
+                player.wins, 
+                player.losses, 
                 chat_id
             ))
         else:
@@ -443,15 +441,15 @@ def _save_player_sync(player: Player, chat_id: int):
             (user_id, username, country, money, army_level, city_level, last_income, wins, losses, chat_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                player.user_id,
-                player.username,
-                player.country,
+                player.user_id, 
+                player.username, 
+                player.country, 
                 player.money,
-                player.army_level,
+                player.army_level, 
                 player.city_level,
                 player.last_income.isoformat() if player.last_income else datetime.now().isoformat(),
-                player.wins,
-                player.losses,
+                player.wins, 
+                player.losses, 
                 chat_id
             ))
 
@@ -484,7 +482,7 @@ def _load_game_sync(chat_id: int) -> Optional[Dict]:
                 war_start_time = datetime.fromisoformat(game_data[4])
             except (ValueError, TypeError):
                 war_start_time = None
-
+                
         last_war = None
         if game_data[5] and isinstance(game_data[5], str):
             try:
@@ -517,32 +515,32 @@ def _load_player_sync(user_id: int, chat_id: int) -> Optional[Player]:
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
-
+        
         cursor.execute("PRAGMA table_info(players)")
         columns = [column[1] for column in cursor.fetchall()]
-
+        
         cursor.execute('SELECT * FROM players WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
         player_data = cursor.fetchone()
-
+        
         if not player_data:
             return None
 
         data_dict = {}
         for i, col in enumerate(columns):
             data_dict[col] = player_data[i]
-
+        
         try:
             population_val = data_dict.get('population', 1000)
             if isinstance(population_val, str) and population_val.startswith('202'):
                 population = 1000
-                cursor.execute("UPDATE players SET population = 1000 WHERE user_id = ? AND chat_id = ?",
-                               (user_id, chat_id))
+                cursor.execute("UPDATE players SET population = 1000 WHERE user_id = ? AND chat_id = ?", 
+                             (user_id, chat_id))
                 conn.commit()
             else:
                 population = int(population_val) if population_val is not None else 1000
         except (ValueError, TypeError):
             population = 1000
-
+        
         last_income_str = data_dict.get('last_income')
         try:
             if last_income_str and isinstance(last_income_str, str):
@@ -582,23 +580,23 @@ async def load_all_players(chat_id: int) -> Dict[int, Player]:
 def _load_all_players_sync(chat_id: int) -> Dict[int, Player]:
     conn = None
     players = {}
-
+    
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
-
+        
         cursor.execute("PRAGMA table_info(players)")
         columns = [column[1] for column in cursor.fetchall()]
-
+        
         cursor.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
         players_data = cursor.fetchall()
-
+        
         for player_data in players_data:
             try:
                 data_dict = {}
                 for i, col in enumerate(columns):
                     data_dict[col] = player_data[i]
-
+                
                 try:
                     population_val = data_dict.get('population', 1000)
                     if isinstance(population_val, str) and population_val.startswith('202'):
@@ -607,7 +605,7 @@ def _load_all_players_sync(chat_id: int) -> Dict[int, Player]:
                         population = int(population_val) if population_val is not None else 1000
                 except (ValueError, TypeError):
                     population = 1000
-
+                
                 last_income_str = data_dict.get('last_income')
                 try:
                     if last_income_str and isinstance(last_income_str, str):
@@ -619,7 +617,7 @@ def _load_all_players_sync(chat_id: int) -> Dict[int, Player]:
                         last_income = datetime.now()
                 except (ValueError, TypeError):
                     last_income = datetime.now()
-
+                
                 player = Player(
                     user_id=int(data_dict.get('user_id', 0)),
                     username=str(data_dict.get('username', f"User_{data_dict.get('user_id', 0)}")),
@@ -636,7 +634,7 @@ def _load_all_players_sync(chat_id: int) -> Dict[int, Player]:
             except Exception as e:
                 print(f"❌ Ошибка при обработке игрока: {e}")
                 continue
-
+                
         return players
     except Exception as e:
         print(f"❌ Ошибка при загрузке всех игроков из чата {chat_id}: {e}")
@@ -647,8 +645,7 @@ def _load_all_players_sync(chat_id: int) -> Dict[int, Player]:
 
 
 async def update_player_income_in_db(user_id: int, chat_id: int) -> float:
-    return await asyncio.get_event_loop().run_in_executor(None,
-                                                          lambda: _update_player_income_in_db_sync(user_id, chat_id))
+    return await asyncio.get_event_loop().run_in_executor(None, lambda: _update_player_income_in_db_sync(user_id, chat_id))
 
 
 def _update_player_income_in_db_sync(user_id: int, chat_id: int) -> float:
@@ -656,7 +653,7 @@ def _update_player_income_in_db_sync(user_id: int, chat_id: int) -> float:
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
-
+        
         cursor.execute("PRAGMA table_info(players)")
         columns = [column[1] for column in cursor.fetchall()]
 
@@ -727,7 +724,7 @@ def _update_player_income_in_db_sync(user_id: int, chat_id: int) -> float:
                     conn.commit()
                     return income
         return 0
-
+        
     except Exception as e:
         print(f"❌ Ошибка обновления дохода для {user_id}: {e}")
         return 0
@@ -766,37 +763,37 @@ def _get_all_games_sync() -> Dict[int, Dict]:
 
 def get_game_keyboard(player_id: int, chat_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-
+    
     builder.row(
         InlineKeyboardButton(text="📊 Статистика", callback_data=f"stats_{player_id}_{chat_id}"),
         InlineKeyboardButton(text="🏆 Топ игроков", callback_data=f"top_{player_id}_{chat_id}"),
         width=2
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="⚔️ Улучшить армию", callback_data=f"upgrade_army_{player_id}_{chat_id}"),
         InlineKeyboardButton(text="🏙️ Улучшить город", callback_data=f"upgrade_city_{player_id}_{chat_id}"),
         width=2
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="⚔️ Начать войну", callback_data=f"start_war_{player_id}_{chat_id}"),
         InlineKeyboardButton(text="🔄 Обновить доход", callback_data=f"refresh_{player_id}_{chat_id}"),
         width=2
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="🌍 Сменить страну", callback_data=f"change_country_{player_id}_{chat_id}"),
         InlineKeyboardButton(text="🤝 Союзники", callback_data=f"alliance_menu_{player_id}_{chat_id}"),
         width=2
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="💰 Передать деньги", callback_data=f"transfer_menu_money_{player_id}_{chat_id}"),
         InlineKeyboardButton(text="🎖️ Передать армию", callback_data=f"transfer_menu_army_{player_id}_{chat_id}"),
         width=2
     )
-
+    
     return builder.as_markup()
 
 
@@ -809,13 +806,13 @@ def get_back_keyboard(player_id: int, chat_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-async def get_players_keyboard(chat_id: int, exclude_id: int, action: str,
+async def get_players_keyboard(chat_id: int, exclude_id: int, action: str, 
                                current_player_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     players = await load_all_players(chat_id)
-
+    
     sorted_players = sorted(players.values(), key=lambda p: p.username)
-
+    
     for player in sorted_players:
         if player.user_id != exclude_id:
             country = COUNTRIES.get(player.country)
@@ -828,24 +825,24 @@ async def get_players_keyboard(chat_id: int, exclude_id: int, action: str,
                     ),
                     width=1
                 )
-
+    
     builder.row(
         InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_{current_player_id}_{chat_id}"),
         width=1
     )
-
+    
     return builder.as_markup()
 
 
 async def get_war_targets_keyboard(chat_id: int, attacker_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     players = await load_all_players(chat_id)
-
+    
     # Получаем союзников атакующего
     allies = alliance_system.get_allies(chat_id, attacker_id)
-
+    
     sorted_players = sorted(players.values(), key=lambda p: p.army_level, reverse=True)
-
+    
     for player in sorted_players:
         if player.user_id != attacker_id:
             country = COUNTRIES.get(player.country)
@@ -853,11 +850,11 @@ async def get_war_targets_keyboard(chat_id: int, attacker_id: int) -> InlineKeyb
                 # Проверяем, является ли игрок союзником
                 is_ally = player.user_id in allies
                 ally_icon = "🤝 " if is_ally else ""
-
+                
                 power = "💪" * min(player.army_level, 3)
                 if player.army_level > 3:
                     power = "💪💪💪+"
-
+                
                 builder.row(
                     InlineKeyboardButton(
                         text=f"{ally_icon}{country.emoji} {player.username} ⚔️{player.army_level} {power} 👥{player.population:,}",
@@ -865,17 +862,17 @@ async def get_war_targets_keyboard(chat_id: int, attacker_id: int) -> InlineKeyb
                     ),
                     width=1
                 )
-
+    
     builder.row(
         InlineKeyboardButton(text="⚔️ Совместная атака", callback_data=f"joint_attack_menu_{attacker_id}_{chat_id}"),
         width=1
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_{attacker_id}_{chat_id}"),
         width=1
     )
-
+    
     return builder.as_markup()
 
 
@@ -883,10 +880,10 @@ async def get_joint_attack_keyboard(chat_id: int, attacker_id: int) -> InlineKey
     """Клавиатура для выбора цели совместной атаки"""
     builder = InlineKeyboardBuilder()
     players = await load_all_players(chat_id)
-
+    
     # Получаем союзников атакующего
     allies = alliance_system.get_allies(chat_id, attacker_id)
-
+    
     for player in players.values():
         if player.user_id != attacker_id and player.user_id not in allies:
             country = COUNTRIES.get(player.country)
@@ -898,81 +895,81 @@ async def get_joint_attack_keyboard(chat_id: int, attacker_id: int) -> InlineKey
                     ),
                     width=1
                 )
-
+    
     builder.row(
         InlineKeyboardButton(text="🔙 Назад", callback_data=f"start_war_{attacker_id}_{chat_id}"),
         width=1
     )
-
+    
     return builder.as_markup()
 
 
 async def get_allies_keyboard(chat_id: int, user_id: int) -> InlineKeyboardMarkup:
     """Клавиатура для управления союзниками"""
     builder = InlineKeyboardBuilder()
-
+    
     builder.row(
         InlineKeyboardButton(text="🤝 Предложить союз", callback_data=f"alliance_request_{user_id}_{chat_id}"),
         width=1
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="📋 Мои союзники", callback_data=f"alliance_list_{user_id}_{chat_id}"),
         width=1
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="💔 Разорвать союз", callback_data=f"alliance_break_{user_id}_{chat_id}"),
         width=1
     )
-
+    
     builder.row(
         InlineKeyboardButton(text="🔙 Назад", callback_data=f"back_{user_id}_{chat_id}"),
         width=1
     )
-
+    
     return builder.as_markup()
 
 
 def get_countries_keyboard(player_id: int, chat_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-
+    
     countries_list = list(COUNTRIES.items())
-
+    
     for i in range(0, len(countries_list), 2):
-        row = countries_list[i:i + 2]
+        row = countries_list[i:i+2]
         buttons = []
         for country_id, country in row:
             buttons.append(
                 InlineKeyboardButton(
-                    text=f"{country.emoji} {country.name} (👥+{int(country.population_bonus * 100 - 100)}%)",
+                    text=f"{country.emoji} {country.name} (👥+{int(country.population_bonus*100-100)}%)",
                     callback_data=f"country_{country_id}_{player_id}_{chat_id}"
                 )
             )
         builder.row(*buttons, width=len(buttons))
-
+    
     builder.row(
         InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_{player_id}_{chat_id}"),
         width=1
     )
-
+    
     return builder.as_markup()
 
 
 async def get_war_help_keyboard(chat_id: int, prep: WarPreparation, user_id: int) -> InlineKeyboardMarkup:
     """Клавиатура для помощи в войне"""
     builder = InlineKeyboardBuilder()
-
+    
     attacker = await load_player(prep.attacker_id, chat_id)
     defender = await load_player(prep.defender_id, chat_id)
-
+    
     elapsed = (datetime.now() - prep.start_time).seconds
     remaining = max(0, WAR_PREPARATION_SECONDS - elapsed)
-
+    
     # Получаем союзников
     attacker_allies = alliance_system.get_allies(chat_id, prep.attacker_id)
     defender_allies = alliance_system.get_allies(chat_id, prep.defender_id)
-
+    
     # Кнопки для участников войны
     if user_id == prep.attacker_id:
         builder.row(
@@ -998,7 +995,7 @@ async def get_war_help_keyboard(chat_id: int, prep: WarPreparation, user_id: int
         # Проверяем, является ли игрок союзником
         is_attacker_ally = user_id in attacker_allies
         is_defender_ally = user_id in defender_allies
-
+        
         if is_attacker_ally:
             builder.row(
                 InlineKeyboardButton(text="🤝 Помочь союзнику (атака)", callback_data=f"war_help_attacker_{chat_id}"),
@@ -1011,26 +1008,24 @@ async def get_war_help_keyboard(chat_id: int, prep: WarPreparation, user_id: int
             )
         else:
             builder.row(
-                InlineKeyboardButton(text=f"🤝 Помочь {attacker.username}",
-                                     callback_data=f"war_help_attacker_{chat_id}"),
+                InlineKeyboardButton(text=f"🤝 Помочь {attacker.username}", callback_data=f"war_help_attacker_{chat_id}"),
                 width=1
             )
             builder.row(
-                InlineKeyboardButton(text=f"🤝 Помочь {defender.username}",
-                                     callback_data=f"war_help_defender_{chat_id}"),
+                InlineKeyboardButton(text=f"🤝 Помочь {defender.username}", callback_data=f"war_help_defender_{chat_id}"),
                 width=1
             )
-
+        
         builder.row(
             InlineKeyboardButton(text="📊 Статус", callback_data=f"war_status_{chat_id}"),
             width=1
         )
-
+    
     builder.row(
         InlineKeyboardButton(text="❌ Выйти", callback_data=f"cancel_{user_id}_{chat_id}"),
         width=1
     )
-
+    
     return builder.as_markup()
 
 
@@ -1038,12 +1033,12 @@ async def get_war_help_keyboard(chat_id: int, prep: WarPreparation, user_id: int
 
 class WarInvitationSystem:
     """Система приглашений в войну через личные сообщения"""
-
+    
     def __init__(self):
         self.active_invitations = {}
         self.user_responses = defaultdict(dict)
         self.invitation_timers = {}
-
+    
     def create_invitation(self, chat_id: int, attacker_id: int, defender_id: int, prep_time: int):
         self.active_invitations[chat_id] = {
             "attacker_id": attacker_id,
@@ -1056,15 +1051,15 @@ class WarInvitationSystem:
                 "neutral": []
             }
         }
-
+    
     def get_invitation(self, chat_id: int) -> Optional[Dict]:
         return self.active_invitations.get(chat_id)
-
+    
     def add_response(self, user_id: int, chat_id: int, side: str):
         invitation = self.active_invitations.get(chat_id)
         if not invitation:
             return False
-
+        
         if side == "attacker":
             if user_id not in invitation["responses"]["for_attacker"]:
                 invitation["responses"]["for_attacker"].append(user_id)
@@ -1074,17 +1069,17 @@ class WarInvitationSystem:
         else:
             if user_id not in invitation["responses"]["neutral"]:
                 invitation["responses"]["neutral"].append(user_id)
-
+        
         self.user_responses[user_id][chat_id] = side
         return True
-
+    
     def remove_invitation(self, chat_id: int):
         if chat_id in self.active_invitations:
             del self.active_invitations[chat_id]
         if chat_id in self.invitation_timers:
             self.invitation_timers[chat_id].cancel()
             del self.invitation_timers[chat_id]
-
+    
     def get_user_choice(self, user_id: int, chat_id: int) -> Optional[str]:
         return self.user_responses.get(user_id, {}).get(chat_id)
 
@@ -1094,20 +1089,20 @@ war_invitation_system = WarInvitationSystem()
 
 async def send_war_invitations(chat_id: int, attacker_id: int, defender_id: int, attack_id: str = None):
     """Разослать приглашения всем игрокам в личные сообщения"""
-
+    
     players = await load_all_players(chat_id)
-
+    
     attacker = await load_player(attacker_id, chat_id)
     defender = await load_player(defender_id, chat_id)
-
+    
     if not attacker or not defender:
         return
-
+    
     attacker_country = COUNTRIES.get(attacker.country)
     defender_country = COUNTRIES.get(defender.country)
-
+    
     war_invitation_system.create_invitation(chat_id, attacker_id, defender_id, WAR_PREPARATION_SECONDS)
-
+    
     # Получаем информацию о совместной атаке
     attack_info = ""
     participants = []
@@ -1116,11 +1111,11 @@ async def send_war_invitations(chat_id: int, attacker_id: int, defender_id: int,
         if attack:
             participants = attack["participants"]
             attack_info = f"👥 **Совместная атака!** Участников: {len(participants)}\n\n"
-
+    
     for player_id, player in players.items():
         if player_id == attacker_id or player_id == defender_id:
             continue
-
+        
         try:
             builder = InlineKeyboardBuilder()
             builder.row(
@@ -1144,7 +1139,7 @@ async def send_war_invitations(chat_id: int, attacker_id: int, defender_id: int,
                 ),
                 width=1
             )
-
+            
             invitation_text = (
                 f"⚔️ **ПРИГЛАШЕНИЕ НА ВОЙНУ!** ⚔️\n\n"
                 f"В чате **{player.username}** начинается война!\n\n"
@@ -1163,48 +1158,48 @@ async def send_war_invitations(chat_id: int, attacker_id: int, defender_id: int,
                 f"• Можно помогать ресурсами\n"
                 f"• Ваша поддержка влияет на исход!"
             )
-
+            
             await bot.send_message(
                 chat_id=player_id,
                 text=invitation_text,
                 reply_markup=builder.as_markup(),
                 parse_mode="Markdown"
             )
-
+            
             print(f"📨 Приглашение отправлено игроку {player_id}")
             await asyncio.sleep(0.3)
-
+            
         except Exception as e:
             print(f"❌ Не удалось отправить приглашение игроку {player_id}: {e}")
-
+    
     asyncio.create_task(invitation_timer(chat_id, attacker_id, defender_id, attack_id))
 
 
 async def invitation_timer(chat_id: int, attacker_id: int, defender_id: int, attack_id: str = None):
     """Таймер сбора ответов на приглашения"""
     await asyncio.sleep(WAR_PREPARATION_SECONDS)
-
+    
     invitation = war_invitation_system.get_invitation(chat_id)
     if not invitation:
         return
-
+    
     for_attacker = len(invitation["responses"]["for_attacker"])
     for_defender = len(invitation["responses"]["for_defender"])
     neutral = len(invitation["responses"]["neutral"])
     total = for_attacker + for_defender + neutral
-
+    
     attacker_player = await load_player(attacker_id, chat_id)
     defender_player = await load_player(defender_id, chat_id)
-
+    
     attacker_country = COUNTRIES.get(attacker_player.country) if attacker_player else None
     defender_country = COUNTRIES.get(defender_player.country) if defender_player else None
-
+    
     attack_info = ""
     if attack_id:
         attack = alliance_system.get_attack(attack_id)
         if attack:
             attack_info = f"👥 **Совместная атака!** Участников: {len(attack['participants'])}\n\n"
-
+    
     results_text = (
         f"📊 **ИТОГИ ПРИГЛАШЕНИЙ**\n\n"
         f"{attack_info}"
@@ -1216,9 +1211,9 @@ async def invitation_timer(chat_id: int, attacker_id: int, defender_id: int, att
         f"❌ Отказались: {neutral}\n\n"
         f"⚔️ Начинаем битву!"
     )
-
+    
     await bot.send_message(chat_id=chat_id, text=results_text, parse_mode="Markdown")
-
+    
     war_invitation_system.remove_invitation(chat_id)
 
 
@@ -1268,20 +1263,18 @@ async def update_player_menu(message: Message, player: Player, chat_id: int):
     income_per_sec = country.base_income * updated_player.city_level * (1 + updated_player.population / 10000)
     army_upgrade_cost = country.army_cost * updated_player.army_level
     city_upgrade_cost = country.city_cost * updated_player.city_level
-
-    army_progress_percent = min(100,
-                                int((updated_player.money / army_upgrade_cost) * 100)) if army_upgrade_cost > 0 else 0
-    city_progress_percent = min(100,
-                                int((updated_player.money / city_upgrade_cost) * 100)) if city_upgrade_cost > 0 else 0
-
+    
+    army_progress_percent = min(100, int((updated_player.money / army_upgrade_cost) * 100)) if army_upgrade_cost > 0 else 0
+    city_progress_percent = min(100, int((updated_player.money / city_upgrade_cost) * 100)) if city_upgrade_cost > 0 else 0
+    
     army_filled = army_progress_percent // 10
     army_empty = 10 - army_filled
     city_filled = city_progress_percent // 10
     city_empty = 10 - city_filled
-
+    
     army_indicator = "■" * army_filled + "□" * army_empty
     city_indicator = "■" * city_filled + "□" * city_empty
-
+    
     # Получаем список союзников
     allies = alliance_system.get_allies(chat_id, updated_player.user_id)
     allies_count = len(allies)
@@ -1290,11 +1283,10 @@ async def update_player_menu(message: Message, player: Player, chat_id: int):
         ally = await load_player(ally_id, chat_id)
         if ally:
             allies_names.append(ally.username)
-
+    
     allies_text = f" ({', '.join(allies_names)})" if allies_names else ""
-
-    win_rate = (updated_player.wins / (updated_player.wins + updated_player.losses) * 100) if (
-                                                                                                          updated_player.wins + updated_player.losses) > 0 else 0
+    
+    win_rate = (updated_player.wins / (updated_player.wins + updated_player.losses) * 100) if (updated_player.wins + updated_player.losses) > 0 else 0
 
     text = (
         f"🎮 **ИГРОВОЙ ПРОФИЛЬ** 🎮\n\n"
@@ -1317,32 +1309,31 @@ async def update_player_menu(message: Message, player: Player, chat_id: int):
     )
 
     try:
-        await message.edit_text(text, reply_markup=get_game_keyboard(updated_player.user_id, chat_id),
-                                parse_mode="Markdown")
+        await message.edit_text(text, reply_markup=get_game_keyboard(updated_player.user_id, chat_id), 
+                               parse_mode="Markdown")
     except TelegramBadRequest:
-        await message.answer(text, reply_markup=get_game_keyboard(updated_player.user_id, chat_id),
-                             parse_mode="Markdown")
+        await message.answer(text, reply_markup=get_game_keyboard(updated_player.user_id, chat_id), 
+                           parse_mode="Markdown")
 
 
-async def start_war_preparation(attacker_id: int, defender_id: int, chat_id: int, callback_message: Message,
-                                attack_id: str = None):
+async def start_war_preparation(attacker_id: int, defender_id: int, chat_id: int, callback_message: Message, attack_id: str = None):
     """Начать подготовку к войне с рассылкой приглашений"""
-
+    
     attacker = await load_player(attacker_id, chat_id)
     defender = await load_player(defender_id, chat_id)
-
+    
     prep = war_system.start_preparation(attacker_id, defender_id, chat_id, attack_id)
-
+    
     # Получаем союзников атакующего
     attacker_allies = alliance_system.get_allies(chat_id, attacker_id)
-
+    
     attack_info = ""
     if attack_id:
         attack = alliance_system.get_attack(attack_id)
         if attack:
             participants = attack["participants"]
             attack_info = f"👥 **Совместная атака!** Участников: {len(participants)}\n\n"
-
+    
     prep_text = (
         f"⚔️ **ПОДГОТОВКА К ВОЙНЕ** ⚔️\n\n"
         f"{attack_info}"
@@ -1355,17 +1346,17 @@ async def start_war_preparation(attacker_id: int, defender_id: int, chat_id: int
         f"• Союзники получат 10% добычи\n\n"
         f"👥 Население влияет на силу в бою!"
     )
-
+    
     msg = await callback_message.edit_text(
         prep_text,
         reply_markup=await get_war_help_keyboard(chat_id, prep, attacker_id),
         parse_mode="Markdown"
     )
-
+    
     prep.message_id = msg.message_id
-
+    
     await send_war_invitations(chat_id, attacker_id, defender_id, attack_id)
-
+    
     asyncio.create_task(war_preparation_timer(chat_id))
 
 
@@ -1373,13 +1364,13 @@ async def war_preparation_timer(chat_id: int):
     """Таймер подготовки к войне"""
     for i in range(WAR_PREPARATION_SECONDS, 0, -10):
         await asyncio.sleep(10)
-
+        
         prep = war_system.get_preparation(chat_id)
         if not prep:
             return
-
+        
         await update_war_preparation_status(chat_id)
-
+    
     await start_actual_war(chat_id)
 
 
@@ -1388,28 +1379,28 @@ async def update_war_preparation_status(chat_id: int):
     prep = war_system.get_preparation(chat_id)
     if not prep:
         return
-
+    
     attacker = await load_player(prep.attacker_id, chat_id)
     defender = await load_player(prep.defender_id, chat_id)
-
+    
     elapsed = (datetime.now() - prep.start_time).seconds
     remaining = max(0, WAR_PREPARATION_SECONDS - elapsed)
-
+    
     # Получаем союзников
     attacker_allies = alliance_system.get_allies(chat_id, prep.attacker_id)
     defender_allies = alliance_system.get_allies(chat_id, prep.defender_id)
-
+    
     # Получаем помощников из приглашений
     invitation = war_invitation_system.get_invitation(chat_id)
     invited_attackers = len(invitation["responses"]["for_attacker"]) if invitation else 0
     invited_defenders = len(invitation["responses"]["for_defender"]) if invitation else 0
-
+    
     attack_info = ""
     if prep.attack_id:
         attack = alliance_system.get_attack(prep.attack_id)
         if attack:
             attack_info = f"👥 **Совместная атака!** Участников: {len(attack['participants'])}\n\n"
-
+    
     status_text = (
         f"⚔️ **ПОДГОТОВКА К ВОЙНЕ** ⚔️\n\n"
         f"{attack_info}"
@@ -1425,7 +1416,7 @@ async def update_war_preparation_status(chat_id: int):
         f"├─ Всего помощников: {len(defender_allies) + invited_defenders}\n"
         f"└─ Сила: ⚔️{defender.army_level} 👥{defender.population:,}\n\n"
     )
-
+    
     if prep.help_offers:
         status_text += "**📦 Помощь:**\n"
         for help_item in prep.help_offers[-3:]:
@@ -1436,7 +1427,7 @@ async def update_war_preparation_status(chat_id: int):
                     status_text += f"• {helper.username} дал {help_item['amount']}💰 {target.username}\n"
                 else:
                     status_text += f"• {helper.username} дал {help_item['amount']}⚔️ {target.username}\n"
-
+    
     try:
         await bot.edit_message_text(
             chat_id=chat_id,
@@ -1452,7 +1443,7 @@ async def update_war_preparation_status(chat_id: int):
 async def get_helpers_list(chat_id: int) -> Dict[str, List[int]]:
     """Получить списки помощников из приглашений и постоянных союзников"""
     helpers = {"attackers": [], "defenders": []}
-
+    
     # Добавляем постоянных союзников
     prep = war_system.get_preparation(chat_id)
     if prep:
@@ -1460,17 +1451,17 @@ async def get_helpers_list(chat_id: int) -> Dict[str, List[int]]:
         defender_allies = alliance_system.get_allies(chat_id, prep.defender_id)
         helpers["attackers"].extend(attacker_allies)
         helpers["defenders"].extend(defender_allies)
-
+    
     # Добавляем приглашенных
     invitation = war_invitation_system.get_invitation(chat_id)
     if invitation:
         helpers["attackers"].extend(invitation["responses"]["for_attacker"])
         helpers["defenders"].extend(invitation["responses"]["for_defender"])
-
+    
     # Убираем дубликаты
     helpers["attackers"] = list(set(helpers["attackers"]))
     helpers["defenders"] = list(set(helpers["defenders"]))
-
+    
     return helpers
 
 
@@ -1479,31 +1470,31 @@ async def start_actual_war(chat_id: int):
     prep = war_system.end_preparation(chat_id)
     if not prep:
         return
-
+    
     helpers = await get_helpers_list(chat_id)
-
+    
     # Добавляем их в подготовку
     for helper_id in helpers["attackers"]:
         if helper_id not in prep.attackers_allies:
             prep.attackers_allies.append(helper_id)
-
+    
     for helper_id in helpers["defenders"]:
         if helper_id not in prep.defenders_allies:
             prep.defenders_allies.append(helper_id)
-
+    
     attacker = await load_player(prep.attacker_id, chat_id)
     defender = await load_player(prep.defender_id, chat_id)
-
+    
     if not attacker or not defender:
         await bot.send_message(chat_id, "❌ Не удалось начать войну: игроки не найдены")
         return
-
+    
     # Применяем помощь
     for help_item in prep.help_offers:
         helper = await load_player(help_item["helper_id"], chat_id)
         if not helper:
             continue
-
+        
         if help_item["type"] == "money":
             if help_item["target_id"] == prep.attacker_id:
                 attacker.money += help_item["amount"]
@@ -1516,38 +1507,38 @@ async def start_actual_war(chat_id: int):
             else:
                 defender.army_level += help_item["amount"]
             helper.army_level -= help_item["amount"]
-
+        
         await save_player(helper, chat_id)
-
+    
     await save_player(attacker, chat_id)
     await save_player(defender, chat_id)
-
+    
     game = await load_game(chat_id)
     war_participants = [attacker.user_id, defender.user_id]
     game["war_active"] = True
     game["war_participants"] = war_participants
     game["war_start_time"] = datetime.now()
     await save_game(chat_id, game["creator_id"], True, war_participants, datetime.now(), game["last_war"])
-
+    
     attacker_country = COUNTRIES.get(attacker.country)
     defender_country = COUNTRIES.get(defender.country)
-
+    
     if attacker_country and defender_country:
         await send_war_image(chat_id, attacker_country, defender_country)
-
+    
     # Расчет силы с учетом союзников и населения
-    attacker_power = (attacker.army_level * (1 + len(prep.attackers_allies) * 0.2) *
-                      (1 + attacker.population / 5000) * (1 + random.uniform(-0.1, 0.1)))
-    defender_power = (defender.army_level * (1 + len(prep.defenders_allies) * 0.2) *
-                      (1 + defender.population / 5000) * (1 + random.uniform(-0.1, 0.1)))
-
+    attacker_power = (attacker.army_level * (1 + len(prep.attackers_allies) * 0.2) * 
+                     (1 + attacker.population / 5000) * (1 + random.uniform(-0.1, 0.1)))
+    defender_power = (defender.army_level * (1 + len(prep.defenders_allies) * 0.2) * 
+                     (1 + defender.population / 5000) * (1 + random.uniform(-0.1, 0.1)))
+    
     attack_info = ""
     if prep.attack_id:
         attack = alliance_system.get_attack(prep.attack_id)
         if attack:
             attack_info = f"👥 **Совместная атака!** Участников: {len(attack['participants'])}\n\n"
             alliance_system.remove_attack(prep.attack_id)
-
+    
     war_text = (
         f"⚔️ **ВОЙНА НАЧАЛАСЬ!** ⚔️\n\n"
         f"{attack_info}"
@@ -1560,9 +1551,9 @@ async def start_actual_war(chat_id: int):
         f"└─ Сила: {defender_power:.1f}\n\n"
         f"⏳ Битва продлится {WAR_DURATION_SECONDS} секунд..."
     )
-
+    
     await bot.send_message(chat_id=chat_id, text=war_text, parse_mode="Markdown")
-
+    
     await asyncio.sleep(WAR_DURATION_SECONDS)
     await end_war(chat_id, prep)
 
@@ -1623,7 +1614,7 @@ async def end_war(chat_id: int, prep: WarPreparation = None):
 
         await save_player(winner, chat_id)
         await save_player(loser, chat_id)
-
+        
         allies_reward_text = ""
         for ally_id in winner_allies:
             ally = await load_player(ally_id, chat_id)
@@ -1631,7 +1622,7 @@ async def end_war(chat_id: int, prep: WarPreparation = None):
                 ally_bonus = int(money_reward * 0.1)
                 ally.money += ally_bonus
                 await save_player(ally, chat_id)
-
+                
                 try:
                     await bot.send_message(
                         chat_id=ally_id,
@@ -1641,7 +1632,7 @@ async def end_war(chat_id: int, prep: WarPreparation = None):
                     )
                 except:
                     pass
-
+                
                 allies_reward_text += f"• {ally.username} +{ally_bonus}💰\n"
 
         game["war_active"] = False
@@ -1666,17 +1657,17 @@ async def end_war(chat_id: int, prep: WarPreparation = None):
             f"├─ Армия: {loser.army_level}⚔️\n"
             f"└─ Население: {loser.population:,}👥\n\n"
         )
-
+        
         if allies_reward_text:
             result_text += f"**🤝 Награды союзникам:**\n{allies_reward_text}\n"
-
+        
         result_text += f"━━━━━━━━━━━━━━━━━━━━\n"
         result_text += f"⏳ Следующая война через {WAR_COOLDOWN_MINUTES} минуты"
 
         await bot.send_message(chat_id=chat_id, text=result_text, parse_mode="Markdown")
-
+        
         war_invitation_system.remove_invitation(chat_id)
-
+        
     except Exception as e:
         print(f"❌ Ошибка при завершении войны: {e}")
         try:
@@ -1771,7 +1762,7 @@ async def handle_game(message: Message):
     if existing_game and existing_game["war_active"]:
         await message.answer("⚔️ Сейчас идет война! Подождите ее окончания.")
         return
-
+        
     if war_system.is_preparing(chat_id):
         await message.answer("⚔️ Сейчас идет подготовка к войне! Подождите.")
         return
@@ -1808,7 +1799,7 @@ async def handle_join(message: Message):
     if game["war_active"]:
         await message.answer("⚔️ Сейчас идет война! Подождите ее окончания.")
         return
-
+        
     if war_system.is_preparing(chat_id):
         await message.answer("⚔️ Сейчас идет подготовка к войне! Подождите.")
         return
@@ -1860,25 +1851,22 @@ async def handle_stats_command(message: Message):
     income_per_sec = country.base_income * updated_player.city_level * (1 + updated_player.population / 10000)
     army_upgrade_cost = country.army_cost * updated_player.army_level
     city_upgrade_cost = country.city_cost * updated_player.city_level
-
-    army_progress_percent = min(100,
-                                int((updated_player.money / army_upgrade_cost) * 100)) if army_upgrade_cost > 0 else 0
-    city_progress_percent = min(100,
-                                int((updated_player.money / city_upgrade_cost) * 100)) if city_upgrade_cost > 0 else 0
-
+    
+    army_progress_percent = min(100, int((updated_player.money / army_upgrade_cost) * 100)) if army_upgrade_cost > 0 else 0
+    city_progress_percent = min(100, int((updated_player.money / city_upgrade_cost) * 100)) if city_upgrade_cost > 0 else 0
+    
     army_filled = army_progress_percent // 10
     army_empty = 10 - army_filled
     city_filled = city_progress_percent // 10
     city_empty = 10 - city_filled
-
+    
     army_indicator = "■" * army_filled + "□" * army_empty
     city_indicator = "■" * city_filled + "□" * city_empty
-
+    
     allies = alliance_system.get_allies(chat_id, updated_player.user_id)
     allies_count = len(allies)
-
-    win_rate = (updated_player.wins / (updated_player.wins + updated_player.losses) * 100) if (
-                                                                                                          updated_player.wins + updated_player.losses) > 0 else 0
+    
+    win_rate = (updated_player.wins / (updated_player.wins + updated_player.losses) * 100) if (updated_player.wins + updated_player.losses) > 0 else 0
 
     text = (
         f"📊 **СТАТИСТИКА** 📊\n\n"
@@ -1923,24 +1911,24 @@ async def handle_top_command(message: Message):
         await update_player_income_in_db(player_id, chat_id)
 
     players = await load_all_players(chat_id)
-
+    
     sorted_players = sorted(players.values(), key=lambda p: p.army_level * p.population, reverse=True)
 
     top_text = f"🏆 **ТОП ИГРОКОВ ЧАТА** 🏆\n\n"
     top_text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
-
+    
     medals = ["🥇", "🥈", "🥉"]
-
+    
     for i, player in enumerate(sorted_players[:10], 1):
         country = COUNTRIES.get(player.country)
         emoji = country.emoji if country else "🏳️"
-        medal = medals[i - 1] if i <= 3 else f"{i}."
-
+        medal = medals[i-1] if i <= 3 else f"{i}."
+        
         allies = alliance_system.get_allies(chat_id, player.user_id)
         allies_icon = "🤝" if allies else ""
-
+        
         power = player.army_level * player.population / 1000
-
+        
         top_text += f"{medal} {emoji} **{player.username}** {allies_icon}\n"
         top_text += f"   ⚔️{player.army_level} | 👥{player.population:,} | 💪{power:.1f}k\n\n"
 
@@ -1962,7 +1950,7 @@ async def handle_war_command(message: Message):
     if game["war_active"]:
         await message.answer("⚔️ **Война уже идет!** Подождите ее окончания.")
         return
-
+        
     if war_system.is_preparing(chat_id):
         await message.answer("⚔️ **Сейчас идет подготовка к войне!** Подождите.")
         return
@@ -2112,7 +2100,7 @@ async def handle_country_selection(callback: CallbackQuery):
         await callback.message.edit_text(
             f"✅ **Страна изменена!**\n\n"
             f"🌍 **Новая страна:** {country.emoji} {country.name}\n"
-            f"👥 **Бонус населения:** +{int(country.population_bonus * 100 - 100)}%\n"
+            f"👥 **Бонус населения:** +{int(country.population_bonus*100-100)}%\n"
             f"📈 **Новый доход:** {country.base_income * existing_player.city_level:.1f} монет/сек",
             parse_mode="Markdown"
         )
@@ -2174,21 +2162,21 @@ async def handle_stats(callback: CallbackQuery):
     income_per_sec = country.base_income * player.city_level * (1 + player.population / 10000)
     army_upgrade_cost = country.army_cost * player.army_level
     city_upgrade_cost = country.city_cost * player.city_level
-
+    
     army_progress_percent = min(100, int((player.money / army_upgrade_cost) * 100)) if army_upgrade_cost > 0 else 0
     city_progress_percent = min(100, int((player.money / city_upgrade_cost) * 100)) if city_upgrade_cost > 0 else 0
-
+    
     army_filled = army_progress_percent // 10
     army_empty = 10 - army_filled
     city_filled = city_progress_percent // 10
     city_empty = 10 - city_filled
-
+    
     army_indicator = "■" * army_filled + "□" * army_empty
     city_indicator = "■" * city_filled + "□" * city_empty
-
+    
     allies = alliance_system.get_allies(chat_id, player.user_id)
     allies_count = len(allies)
-
+    
     win_rate = (player.wins / (player.wins + player.losses) * 100) if (player.wins + player.losses) > 0 else 0
 
     text = (
@@ -2211,8 +2199,8 @@ async def handle_stats(callback: CallbackQuery):
         f"📊 Win Rate: {win_rate:.1f}%"
     )
 
-    await callback.message.edit_text(text, reply_markup=get_back_keyboard(player.user_id, chat_id),
-                                     parse_mode="Markdown")
+    await callback.message.edit_text(text, reply_markup=get_back_keyboard(player.user_id, chat_id), 
+                                    parse_mode="Markdown")
     await callback.answer()
 
 
@@ -2342,8 +2330,7 @@ async def handle_upgrade_city(callback: CallbackQuery):
     player.population = int(player.population * 1.1)
     await save_player(player, chat_id)
 
-    await callback.answer(
-        f"✅ Город улучшен до {player.city_level} уровня! 👥 Население выросло до {player.population:,}")
+    await callback.answer(f"✅ Город улучшен до {player.city_level} уровня! 👥 Население выросло до {player.population:,}")
 
     updated_player = await load_player(user_id, chat_id)
     if updated_player:
@@ -2383,26 +2370,26 @@ async def handle_top(callback: CallbackQuery):
 
     top_text = f"🏆 **ТОП ИГРОКОВ** 🏆\n\n"
     top_text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
-
+    
     medals = ["🥇", "🥈", "🥉"]
-
+    
     for i, player in enumerate(sorted_players[:10], 1):
         country = COUNTRIES.get(player.country)
         emoji = country.emoji if country else "🏳️"
-        medal = medals[i - 1] if i <= 3 else f"{i}."
-
+        medal = medals[i-1] if i <= 3 else f"{i}."
+        
         allies = alliance_system.get_allies(chat_id, player.user_id)
         allies_icon = "🤝" if allies else ""
-
+        
         power = player.army_level * player.population / 1000
-
+        
         top_text += f"{medal} {emoji} **{player.username}** {allies_icon}\n"
         top_text += f"   ⚔️{player.army_level} | 👥{player.population:,} | 💪{power:.1f}k\n\n"
 
     top_text += f"━━━━━━━━━━━━━━━━━━━━"
 
-    await callback.message.edit_text(top_text, reply_markup=get_back_keyboard(user_id, chat_id),
-                                     parse_mode="Markdown")
+    await callback.message.edit_text(top_text, reply_markup=get_back_keyboard(user_id, chat_id), 
+                                    parse_mode="Markdown")
     await callback.answer()
 
 
@@ -2510,9 +2497,9 @@ async def handle_alliance_send(callback: CallbackQuery):
             reply_markup=builder.as_markup(),
             parse_mode="Markdown"
         )
-
+        
         alliance_system.send_request(chat_id, sender_id, target_id)
-
+        
         await callback.message.edit_text(
             f"✅ **Запрос отправлен**\n\n"
             f"Игроку {target.username} отправлен запрос на союз.\n\n"
@@ -2523,7 +2510,7 @@ async def handle_alliance_send(callback: CallbackQuery):
     except Exception as e:
         await callback.answer("❌ Не удалось отправить запрос. Возможно, игрок не начал диалог с ботом.")
         return
-
+    
     await callback.answer()
 
 
@@ -2625,7 +2612,7 @@ async def handle_alliance_list(callback: CallbackQuery):
         return
 
     allies = alliance_system.get_allies(chat_id, user_id)
-
+    
     if not allies:
         text = "📋 **У вас пока нет союзников**\n\nИспользуйте 🤝 Союзники в меню, чтобы найти союзников."
     else:
@@ -2660,7 +2647,7 @@ async def handle_alliance_break(callback: CallbackQuery):
         return
 
     allies = alliance_system.get_allies(chat_id, user_id)
-
+    
     if not allies:
         await callback.answer("❌ У вас нет союзников!")
         return
@@ -2676,7 +2663,7 @@ async def handle_alliance_break(callback: CallbackQuery):
                 ),
                 width=1
             )
-
+    
     builder.row(
         InlineKeyboardButton(text="🔙 Назад", callback_data=f"alliance_menu_{user_id}_{chat_id}"),
         width=1
@@ -2757,7 +2744,7 @@ async def handle_joint_attack_menu(callback: CallbackQuery):
         return
 
     allies = alliance_system.get_allies(chat_id, attacker_id)
-
+    
     if not allies:
         await callback.answer("❌ У вас нет союзников для совместной атаки!")
         return
@@ -2819,12 +2806,12 @@ async def handle_joint_target(callback: CallbackQuery):
 
     # Создаем совместную атаку
     attack_id = alliance_system.create_joint_attack(attacker_id, target_id, chat_id)
-
+    
     # Добавляем всех союзников в атаку
     allies = alliance_system.get_allies(chat_id, attacker_id)
     for ally_id in allies:
         alliance_system.join_attack(attack_id, ally_id)
-
+        
         # Уведомляем союзников
         try:
             await bot.send_message(
@@ -2864,7 +2851,7 @@ async def handle_start_war(callback: CallbackQuery):
     if game["war_active"]:
         await callback.answer("⚔️ Война уже идет!")
         return
-
+        
     if war_system.is_preparing(chat_id):
         await callback.answer("⚔️ Сейчас идет подготовка к войне!")
         return
@@ -2926,7 +2913,7 @@ async def handle_war_target(callback: CallbackQuery):
     if game["war_active"]:
         await callback.answer("⚔️ Война уже идет!")
         return
-
+        
     if war_system.is_preparing(chat_id):
         await callback.answer("⚔️ Сейчас идет подготовка к войне!")
         return
@@ -2952,22 +2939,22 @@ async def handle_war_side_choice(callback: CallbackQuery):
     if len(data) != 4:
         await callback.answer("❌ Ошибка!")
         return
-
+    
     side = data[2]
     chat_id = int(data[3])
     user_id = callback.from_user.id
-
+    
     game = await load_game(chat_id)
     if not game:
         await callback.answer("❌ Игра не найдена!")
         return
-
+    
     if not game["war_active"] and not war_system.is_preparing(chat_id):
         await callback.answer("❌ Война уже закончилась!")
         return
-
+    
     war_invitation_system.add_response(user_id, chat_id, side)
-
+    
     if side == "attacker":
         text = "✅ Вы присоединились к **атакующему**! Используйте /transfer чтобы помочь ресурсами."
         await callback.answer("✅ Вы за атакующего!")
@@ -2977,7 +2964,7 @@ async def handle_war_side_choice(callback: CallbackQuery):
     else:
         text = "❌ Вы отказались от участия в войне."
         await callback.answer("❌ Вы не участвуете")
-
+    
     await callback.message.edit_text(
         f"⚔️ **ВАШ ВЫБОР**\n\n{text}",
         parse_mode="Markdown"
@@ -3007,7 +2994,7 @@ async def handle_war_call_allies(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     await callback.message.edit_text(
         "🆘 **ПРИЗЫВ СОЮЗНИКОВ** 🆘\n\n"
         "Напишите в чат сообщение, чтобы позвать союзников!\n\n"
@@ -3024,7 +3011,7 @@ async def handle_war_help_attacker(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="💰 Помочь деньгами", callback_data=f"war_help_money_attacker_{chat_id}"),
@@ -3038,7 +3025,7 @@ async def handle_war_help_attacker(callback: CallbackQuery):
         InlineKeyboardButton(text="🔙 Назад", callback_data=f"war_status_{chat_id}"),
         width=1
     )
-
+    
     await callback.message.edit_text(
         "🤝 **ПОМОЩЬ АТАКУЮЩЕМУ**\n\n"
         "Выберите тип помощи:",
@@ -3054,7 +3041,7 @@ async def handle_war_help_defender(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="💰 Помочь деньгами", callback_data=f"war_help_money_defender_{chat_id}"),
@@ -3068,7 +3055,7 @@ async def handle_war_help_defender(callback: CallbackQuery):
         InlineKeyboardButton(text="🔙 Назад", callback_data=f"war_status_{chat_id}"),
         width=1
     )
-
+    
     await callback.message.edit_text(
         "🤝 **ПОМОЩЬ ЗАЩИТНИКУ**\n\n"
         "Выберите тип помощи:",
@@ -3084,19 +3071,19 @@ async def handle_war_help_money_attacker(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     helper = await load_player(callback.from_user.id, chat_id)
     if not helper:
         await callback.answer("❌ Вы не в игре!")
         return
-
+    
     transfer_data.transfers[callback.from_user.id] = {
         "target_id": prep.attacker_id,
         "type": "money",
         "chat_id": chat_id,
         "war_prep": True
     }
-
+    
     await callback.message.edit_text(
         f"💰 **ПОМОЩЬ ДЕНЬГАМИ**\n\n"
         f"Ваш баланс: {int(helper.money):,} монет\n\n"
@@ -3113,25 +3100,25 @@ async def handle_war_help_army_attacker(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     helper = await load_player(callback.from_user.id, chat_id)
     if not helper:
         await callback.answer("❌ Вы не в игре!")
         return
-
+    
     if helper.army_level <= 1:
         await callback.answer("❌ У вас минимальный уровень армии!")
         return
-
+    
     transfer_data.transfers[callback.from_user.id] = {
         "target_id": prep.attacker_id,
         "type": "army",
         "chat_id": chat_id,
         "war_prep": True
     }
-
+    
     max_transfer = helper.army_level - 1
-
+    
     await callback.message.edit_text(
         f"🎖️ **ПОМОЩЬ АРМИЕЙ**\n\n"
         f"Ваша армия: {helper.army_level} уровень\n"
@@ -3149,19 +3136,19 @@ async def handle_war_help_money_defender(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     helper = await load_player(callback.from_user.id, chat_id)
     if not helper:
         await callback.answer("❌ Вы не в игре!")
         return
-
+    
     transfer_data.transfers[callback.from_user.id] = {
         "target_id": prep.defender_id,
         "type": "money",
         "chat_id": chat_id,
         "war_prep": True
     }
-
+    
     await callback.message.edit_text(
         f"💰 **ПОМОЩЬ ДЕНЬГАМИ**\n\n"
         f"Ваш баланс: {int(helper.money):,} монет\n\n"
@@ -3178,25 +3165,25 @@ async def handle_war_help_army_defender(callback: CallbackQuery):
     if not prep:
         await callback.answer("❌ Подготовка не найдена!")
         return
-
+    
     helper = await load_player(callback.from_user.id, chat_id)
     if not helper:
         await callback.answer("❌ Вы не в игре!")
         return
-
+    
     if helper.army_level <= 1:
         await callback.answer("❌ У вас минимальный уровень армии!")
         return
-
+    
     transfer_data.transfers[callback.from_user.id] = {
         "target_id": prep.defender_id,
         "type": "army",
         "chat_id": chat_id,
         "war_prep": True
     }
-
+    
     max_transfer = helper.army_level - 1
-
+    
     await callback.message.edit_text(
         f"🎖️ **ПОМОЩЬ АРМИЕЙ**\n\n"
         f"Ваша армия: {helper.army_level} уровень\n"
@@ -3880,7 +3867,7 @@ async def handle_game_info(message: Message):
         return
 
     games_count = len(await get_all_games())
-
+    
     total_players = 0
     games = await get_all_games()
     for chat_id in games.keys():
@@ -3915,7 +3902,7 @@ async def force_update_all_incomes():
     print("🔄 Принудительное обновление дохода для всех игроков...")
     games = await get_all_games()
     updated_count = 0
-
+    
     for chat_id, game in games.items():
         if not game["war_active"] and not war_system.is_preparing(chat_id):
             players = await load_all_players(chat_id)
@@ -3923,7 +3910,7 @@ async def force_update_all_incomes():
                 income = await update_player_income_in_db(player.user_id, chat_id)
                 if income > 0:
                     updated_count += 1
-
+    
     print(f"✅ Доход обновлен для {updated_count} игроков")
 
 
